@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { TenderData, Bidder } from "@shared/schema";
+import { convertToWords } from "@/lib/document-utils";
 
 interface DocumentPreviewProps {
   tenderData: TenderData;
@@ -55,9 +56,11 @@ export function DocumentPreview({ tenderData }: DocumentPreviewProps) {
               <div className="text-center">
                 <p className="font-semibold">Lowest Amount Quoted BY:</p>
                 <p>{tenderData.lowestBidder}</p>
-                <p>{tenderData.lowestPercentage} - Rs. {tenderData.lowestAmount}</p>
+                <p>{tenderData.lowestPercentage} - Rs. {tenderData.lowestAmount.toLocaleString('en-IN')}</p>
+                <p className="italic text-xs my-1">in words Rupees {convertToWords(tenderData.lowestAmount)} only</p>
+                <p className="font-bold text-xs">is hereby approved.</p>
               </div>
-              <div className="mt-4 grid grid-cols-4 gap-2 text-center">
+              <div className="mt-4 grid grid-cols-4 gap-2 text-center border-t pt-2">
                 <div>AR</div>
                 <div>DA</div>
                 <div>TA</div>

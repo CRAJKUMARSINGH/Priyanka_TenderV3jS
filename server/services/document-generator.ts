@@ -5,6 +5,54 @@ import fs from 'fs';
 import path from 'path';
 import { TenderData, type IStorage } from '@shared/schema';
 
+// Helper function to convert number to words (Indian number system)
+function convertToWords(num: number): string {
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+
+  if (num === 0) return "Zero";
+
+  let words = "";
+
+  // Handle crores
+  if (Math.floor(num / 10000000)) {
+    words += convertToWords(Math.floor(num / 10000000)) + " Crore ";
+    num %= 10000000;
+  }
+
+  // Handle lakhs
+  if (Math.floor(num / 100000)) {
+    words += convertToWords(Math.floor(num / 100000)) + " Lakh ";
+    num %= 100000;
+  }
+
+  // Handle thousands
+  if (Math.floor(num / 1000)) {
+    words += convertToWords(Math.floor(num / 1000)) + " Thousand ";
+    num %= 1000;
+  }
+
+  // Handle hundreds
+  if (Math.floor(num / 100)) {
+    words += convertToWords(Math.floor(num / 100)) + " Hundred ";
+    num %= 100;
+  }
+
+  // Handle remaining numbers
+  if (num > 0) {
+    if (words !== "") words += "and ";
+    if (num < 10) words += ones[num];
+    else if (num < 20) words += teens[num - 10];
+    else {
+      words += tens[Math.floor(num / 10)];
+      if (num % 10 > 0) words += " " + ones[num % 10];
+    }
+  }
+
+  return words.trim();
+}
+
 export async function generateAllDocuments(tenderData: TenderData, storage: IStorage): Promise<string> {
   const outputDir = path.join(process.cwd(), 'generated_docs');
   if (!fs.existsSync(outputDir)) {
@@ -143,19 +191,70 @@ async function generateComparativeStatement(tenderData: TenderData, format: 'doc
             ]
           }),
           new Paragraph({ text: "" }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `Lowest Amount Quoted BY: ${tenderData.lowestBidder}     ${tenderData.lowestPercentage}     ${tenderData.lowestAmount}`,
-                bold: true
-              })
-            ]
-          }),
-          new Paragraph({ text: "" }),
           new Table({
             width: { size: 60, type: WidthType.PERCENTAGE },
             alignment: AlignmentType.RIGHT,
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 2, color: "1e40af" },
+              bottom: { style: BorderStyle.SINGLE, size: 2, color: "1e40af" },
+              left: { style: BorderStyle.SINGLE, size: 2, color: "1e40af" },
+              right: { style: BorderStyle.SINGLE, size: 2, color: "1e40af" }
+            },
             rows: [
+              new TableRow({
+                children: [
+                  new TableCell({ 
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "Lowest Amount Quoted BY:",
+                            bold: true
+                          })
+                        ],
+                        alignment: AlignmentType.CENTER
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: tenderData.lowestBidder,
+                            bold: false
+                          })
+                        ],
+                        alignment: AlignmentType.CENTER
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `${tenderData.lowestPercentage} - Rs. ${tenderData.lowestAmount.toLocaleString('en-IN')}`,
+                            bold: false
+                          })
+                        ],
+                        alignment: AlignmentType.CENTER
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: `in words Rupees ${convertToWords(tenderData.lowestAmount)} only`,
+                            italic: true
+                          })
+                        ],
+                        alignment: AlignmentType.CENTER
+                      }),
+                      new Paragraph({
+                        children: [
+                          new TextRun({
+                            text: "is hereby approved.",
+                            bold: true
+                          })
+                        ],
+                        alignment: AlignmentType.CENTER
+                      })
+                    ],
+                    columnSpan: 4
+                  })
+                ]
+              }),
               new TableRow({
                 children: [
                   new TableCell({ children: [new Paragraph("AR")] }),
@@ -443,6 +542,44 @@ async function generateWorkOrder(tenderData: TenderData, format: 'doc' | 'pdf', 
           }),
           new Paragraph({
             children: [new TextRun({ text: "On behalf of the Governor of State of Rajasthan" })]
+          }),
+          new Paragraph({ text: "" }),
+          new Paragraph({
+            children: [new TextRun({ text: "No.-                    Date-" })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "Copy to the following for information & necessary action: -", bold: true })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "1. The Accountant General Raj Jaipur" })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "2. The Addl Chief Engineer PWD Zone Udaipur." })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "3. The Addl Chief Engineer PWD Electrical Zone Udaipur." })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "4. The Superintending Engineer PWD Electric Circle Udaipur." })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "5. The Assistant Engineer PWD Electric Sub.Dn I/II Udaipur/Rajsamand for similar action." })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "6. The junior Engineer PWD Electric Sub Dn I/II Udaipur/Rajsamand for similar action." })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "7. Agreement clerk with original tender for preparing agreement at the earliest." })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "8. Auditor" })]
+          }),
+          new Paragraph({ text: "" }),
+          new Paragraph({
+            children: [new TextRun({ text: "Executive Engineer," })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "PWD ELECTRICAL DIVISION- UDAIPUR" })]
           })
         ]
       }]
@@ -531,6 +668,26 @@ async function generateAcceptanceLetter(tenderData: TenderData, format: 'doc' | 
           }),
           new Paragraph({
             children: [new TextRun({ text: "On behalf of the Governor of State of Rajasthan" })]
+          }),
+          new Paragraph({ text: "" }),
+          new Paragraph({
+            children: [new TextRun({ text: "No.-                    Date-" })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "Copy to the following for information & necessary action: -", bold: true })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "1. The Superintending Engineer PWD Electric Circle Udaipur." })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "2. The Assistant Engineer PWD Electric Sub. Dn I/II Udaipur/Rajsamand for similar action." })]
+          }),
+          new Paragraph({ text: "" }),
+          new Paragraph({
+            children: [new TextRun({ text: "Executive Engineer," })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: "PWD ELECTRICAL DIVISION- UDAIPUR" })]
           })
         ]
       }]
@@ -623,9 +780,11 @@ function getComparativeHTML(tenderData: TenderData): string {
         <div style="text-align: center;">
           <p><strong>Lowest Amount Quoted BY:</strong></p>
           <p>${tenderData.lowestBidder}</p>
-          <p>${tenderData.lowestPercentage} - Rs. ${tenderData.lowestAmount}</p>
+          <p>${tenderData.lowestPercentage} - Rs. ${tenderData.lowestAmount.toLocaleString('en-IN')}</p>
+          <p style="font-style: italic; margin: 5px 0;">in words Rupees ${convertToWords(tenderData.lowestAmount)} only</p>
+          <p style="font-weight: bold; margin: 10px 0;">is hereby approved.</p>
         </div>
-        <table style="margin-top: 20px;">
+        <table style="margin-top: 20px; border-top: 1px solid #666; padding-top: 10px;">
           <tr>
             <td style="text-align: center;">AR</td>
             <td style="text-align: center;">DA</td>
@@ -744,6 +903,22 @@ function getWorkOrderHTML(tenderData: TenderData): string {
         <div>Executive Engineer</div>
         <div>On behalf of the Governor of State of Rajasthan</div>
       </div>
+      
+      <br><br>
+      <div>No.-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Date-</div>
+      <div><strong>Copy to the following for information & necessary action: -</strong></div>
+      <div>1. The Accountant General Raj Jaipur</div>
+      <div>2. The Addl Chief Engineer PWD Zone Udaipur.</div>
+      <div>3. The Addl Chief Engineer PWD Electrical Zone Udaipur.</div>
+      <div>4. The Superintending Engineer PWD Electric Circle Udaipur.</div>
+      <div>5. The Assistant Engineer PWD Electric Sub.Dn I/II Udaipur/Rajsamand for similar action.</div>
+      <div>6. The junior Engineer PWD Electric Sub Dn I/II Udaipur/Rajsamand for similar action.</div>
+      <div>7. Agreement clerk with original tender for preparing agreement at the earliest.</div>
+      <div>8. Auditor</div>
+      
+      <br>
+      <div>Executive Engineer,</div>
+      <div>PWD ELECTRICAL DIVISION- UDAIPUR</div>
     </body>
     </html>
   `;
@@ -791,6 +966,16 @@ function getAcceptanceHTML(tenderData: TenderData): string {
         <div>Executive Engineer</div>
         <div>On behalf of the Governor of State of Rajasthan</div>
       </div>
+      
+      <br><br>
+      <div>No.-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Date-</div>
+      <div><strong>Copy to the following for information & necessary action: -</strong></div>
+      <div>1. The Superintending Engineer PWD Electric Circle Udaipur.</div>
+      <div>2. The Assistant Engineer PWD Electric Sub. Dn I/II Udaipur/Rajsamand for similar action.</div>
+      
+      <br>
+      <div>Executive Engineer,</div>
+      <div>PWD ELECTRICAL DIVISION- UDAIPUR</div>
     </body>
     </html>
   `;
