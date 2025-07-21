@@ -30,6 +30,7 @@ import {
 import Navigation from "@/components/ui/navigation";
 import FileUpload from "@/components/ui/file-upload";
 import BidderForm from "@/components/ui/bidder-form";
+import EnhancedBidderForm from "@/components/ui/enhanced-bidder-form";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Tender, Bidder, BidderPercentile } from "@shared/schema";
@@ -346,116 +347,170 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Bidder Percentile Section */}
-          <Card className="mb-8">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center">
-                  <Percent className="text-orange-600 mr-2" />
-                  Bidder Percentile Management
-                </CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Star className="celebration-star" />
-                  <span className="text-sm text-gray-500">Step 2 of 3</span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <BidderForm 
-                onSubmit={(data) => {
-                  addBidderPercentileMutation.mutate({
-                    tenderId: currentTenderId,
-                    ...data
-                  });
-                }}
-                isLoading={addBidderPercentileMutation.isPending}
-              />
-              
-              <div className="flex justify-between items-center mt-6">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600">
-                    Total Bidders: <span className="font-bold">{bidders.length}</span>
-                  </span>
-                  <Button variant="outline" size="sm">
-                    <List className="mr-1 h-4 w-4" />
-                    View All
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Enhanced Bidder Management Section */}
+          <EnhancedBidderForm 
+            tenderId={currentTenderId}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ 
+                queryKey: ["/api/tenders", currentTenderId, "percentiles"] 
+              });
+            }}
+          />
 
-          {/* Recent Bidders List */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="text-purple-600 mr-2" />
-                Recent Bidders ({bidders.length} Registered)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">S.No</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bidder Details</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Percent</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {percentiles.slice(0, 5).map((percentile, index) => {
-                      const bidder = bidders.find(b => b.id === percentile.bidderId);
-                      const percentage = parseFloat(percentile.percentage as string);
-                      
-                      return (
-                        <tr key={percentile.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {index + 1}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            <div className="max-w-xs">
-                              <p className="font-medium">{bidder?.name || percentile.bidderDetails.split('\n')[0]}</p>
-                              <p className="text-gray-500 text-xs">{bidder?.address || percentile.bidderDetails.split('\n')[1]}</p>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge 
-                              variant={percentage < 0 ? "destructive" : percentage > 0 ? "default" : "secondary"}
-                            >
-                              {percentage >= 0 ? '+' : ''}{percentage}%
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge variant="secondary">Active</Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-900 mr-3">
-                              Edit
-                            </Button>
-                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-900">
-                              Delete
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {bidders.length > 5 && (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                          <Button variant="ghost" className="text-blue-600 hover:text-blue-800">
-                            Show remaining {bidders.length - 5} bidders
-                          </Button>
-                        </td>
-                      </tr>
+          {/* Bidder Participation Results */}
+          {percentiles.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center">
+                    <Users className="text-purple-600 mr-2" />
+                    Bidder Participation Results
+                  </CardTitle>
+                  <div className="flex items-center space-x-2">
+                    {percentiles.length === 1 ? (
+                      <Badge className="bg-blue-100 text-blue-700">
+                        <Trophy className="w-3 h-3 mr-1" />
+                        Single Bidder Tender
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-700">
+                        {percentiles.length} Bidders Participating
+                      </Badge>
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">S.No</th>
+                        <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium" 
+                            style={{width: '125mm', minWidth: '125mm', maxWidth: '125mm'}}>
+                          Bidder Details (125mm x 15mm Window)
+                        </th>
+                        <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Percentage</th>
+                        <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Quoted Amount</th>
+                        <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Rank</th>
+                        <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {percentiles
+                        .sort((a, b) => parseFloat(a.percentage) - parseFloat(b.percentage))
+                        .map((percentile, index) => {
+                          const currentTender = tenders.find(t => t.id === currentTenderId);
+                          const baseAmount = currentTender ? parseFloat(currentTender.estimatedAmount) : 0;
+                          const quotedAmount = baseAmount * (1 + parseFloat(percentile.percentage) / 100);
+                          const isL1 = index === 0 && percentiles.length > 1;
+                          const isSingle = percentiles.length === 1;
+                          
+                          return (
+                            <tr key={percentile.id} className={isL1 ? "bg-green-50" : isSingle ? "bg-blue-50" : ""}>
+                              <td className="border border-gray-300 px-3 py-2 text-center font-medium">
+                                {index + 1}
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2" 
+                                  style={{
+                                    width: '125mm', 
+                                    minWidth: '125mm', 
+                                    maxWidth: '125mm',
+                                    height: '15mm',
+                                    minHeight: '15mm',
+                                    maxHeight: '15mm'
+                                  }}>
+                                <div className="text-xs leading-tight overflow-hidden font-mono"
+                                     style={{
+                                       height: '15mm',
+                                       lineHeight: '1.1',
+                                       display: '-webkit-box',
+                                       WebkitLineClamp: 3,
+                                       WebkitBoxOrient: 'vertical'
+                                     }}>
+                                  {percentile.bidderDetails}
+                                </div>
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-center">
+                                <Badge variant={parseFloat(percentile.percentage) < 0 ? "destructive" : "secondary"}>
+                                  {parseFloat(percentile.percentage) >= 0 ? '+' : ''}{percentile.percentage}%
+                                </Badge>
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-right font-medium">
+                                ₹ {quotedAmount.toLocaleString('en-IN')}
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-center">
+                                {isSingle ? (
+                                  <Badge variant="outline" className="text-xs">
+                                    Only
+                                  </Badge>
+                                ) : (
+                                  <Badge variant={isL1 ? "default" : "outline"} className="text-xs">
+                                    {isL1 ? "L1" : `L${index + 1}`}
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="border border-gray-300 px-3 py-2 text-center">
+                                {isL1 ? (
+                                  <Badge className="bg-green-600 text-white text-xs">
+                                    <Trophy className="w-3 h-3 mr-1" />
+                                    Lowest Bidder
+                                  </Badge>
+                                ) : isSingle ? (
+                                  <Badge className="bg-blue-600 text-white text-xs">
+                                    Single Participant
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs">
+                                    Participant
+                                  </Badge>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Summary Section */}
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-medium text-gray-700 mb-3">Tender Summary:</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Total Participants:</span>
+                      <span className="font-medium ml-2">{percentiles.length}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Tender Type:</span>
+                      <span className="font-medium ml-2">
+                        {percentiles.length === 1 ? "Single Bidder" : "Multi-Bidder Competitive"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">L1 Bidder:</span>
+                      <span className="font-medium ml-2">
+                        {percentiles.length > 0 ? 
+                          percentiles.sort((a, b) => parseFloat(a.percentage) - parseFloat(b.percentage))[0]
+                            .bidderDetails.split('\n')[0] : 
+                          "None"
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {percentiles.length === 1 && (
+                    <div className="mt-3 p-3 bg-blue-100 rounded border border-blue-200">
+                      <p className="text-blue-700 text-sm">
+                        <CheckCircle className="w-4 h-4 inline mr-1" />
+                        Single bidder tender is valid for specialized works where limited qualified contractors are available.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Document Generation Section */}
           <Card>
