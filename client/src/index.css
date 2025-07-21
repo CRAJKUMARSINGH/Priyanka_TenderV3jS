@@ -79,6 +79,10 @@
     @apply text-[hsl(var(--celebration-pink))] animate-pulse;
   }
   
+  .balloon-float {
+    @apply text-[hsl(var(--celebration-purple))] animate-float;
+  }
+  
   .celebration-star {
     @apply text-[hsl(var(--celebration-yellow))] animate-bounce;
   }
@@ -89,6 +93,14 @@
   
   .celebration-trophy {
     @apply text-[hsl(var(--celebration-yellow))];
+  }
+  
+  .confetti {
+    @apply text-[hsl(var(--celebration-orange))] animate-spin;
+  }
+  
+  .celebration-sparkle {
+    @apply text-[hsl(var(--celebration-yellow))] animate-ping;
   }
   
   .wish-message {

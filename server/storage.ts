@@ -149,7 +149,8 @@ export class MemStorage implements IStorage {
       ...insertTender, 
       id,
       createdAt: new Date(),
-      status: "active"
+      status: "active",
+      excelData: insertTender.excelData || null
     };
     this.tenders.set(id, tender);
     return tender;
@@ -179,7 +180,8 @@ export class MemStorage implements IStorage {
       ...insertBidder, 
       id,
       createdAt: new Date(),
-      isActive: true
+      isActive: true,
+      contactInfo: insertBidder.contactInfo || null
     };
     this.bidders.set(id, bidder);
     return bidder;
@@ -217,7 +219,10 @@ export class MemStorage implements IStorage {
     const percentile: BidderPercentile = { 
       ...insertPercentile, 
       id,
-      createdAt: new Date()
+      createdAt: new Date(),
+      tenderId: insertPercentile.tenderId || null,
+      bidderId: insertPercentile.bidderId || null,
+      percentage: insertPercentile.percentage.toString()
     };
     this.bidderPercentiles.set(id, percentile);
     return percentile;
@@ -231,7 +236,11 @@ export class MemStorage implements IStorage {
     const existing = this.bidderPercentiles.get(id);
     if (!existing) return undefined;
     
-    const updated = { ...existing, ...percentile };
+    const updated = { 
+      ...existing, 
+      ...percentile,
+      percentage: percentile.percentage ? percentile.percentage.toString() : existing.percentage
+    };
     this.bidderPercentiles.set(id, updated);
     return updated;
   }
@@ -246,7 +255,10 @@ export class MemStorage implements IStorage {
     const document: GeneratedDocument = { 
       ...insertDocument, 
       id,
-      createdAt: new Date()
+      createdAt: new Date(),
+      tenderId: insertDocument.tenderId || null,
+      fileData: insertDocument.fileData || null,
+      filePath: insertDocument.filePath || null
     };
     this.documents.set(id, document);
     return document;

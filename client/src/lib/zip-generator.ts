@@ -1,6 +1,4 @@
-// ZIP generation utilities
-// This is a placeholder for actual ZIP generation implementation
-// In production, you would use libraries like JSZip
+import JSZip from 'jszip';
 
 export interface DocumentFile {
   name: string;
@@ -9,24 +7,30 @@ export interface DocumentFile {
 }
 
 export async function generateZipFile(documents: DocumentFile[]): Promise<Blob> {
-  // Placeholder implementation
-  // In production, this would use JSZip to create actual ZIP files
+  const zip = new JSZip();
   
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Create a mock ZIP file blob
-      const mockZipContent = "UEsDBBQAAAAIAAsAAABhbUxFAAAABQAAAAgAHABkb2N1bWVudHNVVAkAA3BhbUxgYW1MdXgLAAEE6AMAAAToAwAAY29udGVudA==";
-      const binaryString = atob(mockZipContent);
-      const bytes = new Uint8Array(binaryString.length);
-      
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      
-      const blob = new Blob([bytes], { type: 'application/zip' });
-      resolve(blob);
-    }, 1500); // Simulate processing time
+  // Add each document to the ZIP
+  documents.forEach(doc => {
+    // Convert base64 to binary data
+    const binaryData = atob(doc.content);
+    const bytes = new Uint8Array(binaryData.length);
+    for (let i = 0; i < binaryData.length; i++) {
+      bytes[i] = binaryData.charCodeAt(i);
+    }
+    
+    zip.file(doc.name, bytes, { binary: true });
   });
+  
+  // Generate the ZIP file
+  const blob = await zip.generateAsync({ 
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: {
+      level: 6
+    }
+  });
+  
+  return blob;
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
