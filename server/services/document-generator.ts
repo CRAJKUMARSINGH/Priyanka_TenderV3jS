@@ -73,10 +73,6 @@ export async function generateAllDocuments(tenderData: TenderData, storage: ISto
     // Generate DOC format
     const docPath = await doc.generator(tenderData, 'doc', outputDir);
     documentsPath.push(docPath);
-    
-    // Generate PDF format
-    const pdfPath = await doc.generator(tenderData, 'pdf', outputDir);
-    documentsPath.push(pdfPath);
 
     // Store in memory storage
     await storage.createGeneratedDocument({
@@ -84,13 +80,6 @@ export async function generateAllDocuments(tenderData: TenderData, storage: ISto
       docType: doc.type,
       format: 'doc',
       filePath: docPath
-    });
-    
-    await storage.createGeneratedDocument({
-      tenderId: tenderData.id,
-      docType: doc.type,
-      format: 'pdf',
-      filePath: pdfPath
     });
   }
 
@@ -104,7 +93,7 @@ export async function generateAllDocuments(tenderData: TenderData, storage: ISto
   }
 
   const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
-  const zipPath = path.join(outputDir, `PWD_Documents_${tenderData.nitNumber}_${Date.now()}.zip`);
+  const zipPath = path.join(outputDir, `PWD_Documents_${sanitizeFileName(tenderData.nitNumber)}_${Date.now()}.zip`);
   fs.writeFileSync(zipPath, zipBuffer);
 
   // Clean up individual files
@@ -117,8 +106,12 @@ export async function generateAllDocuments(tenderData: TenderData, storage: ISto
   return zipPath;
 }
 
+function sanitizeFileName(fileName: string): string {
+  return fileName.replace(/[/\\:*?"<>|]/g, '_');
+}
+
 async function generateComparativeStatement(tenderData: TenderData, format: 'doc' | 'pdf', outputDir: string): Promise<string> {
-  const fileName = `Comparative_Statement_${tenderData.nitNumber}.${format}`;
+  const fileName = `Comparative_Statement_${sanitizeFileName(tenderData.nitNumber)}.${format}`;
   const filePath = path.join(outputDir, fileName);
 
   if (format === 'doc') {
@@ -286,15 +279,14 @@ async function generateComparativeStatement(tenderData: TenderData, format: 'doc
     const buffer = await Packer.toBuffer(doc);
     fs.writeFileSync(filePath, buffer);
   } else {
-    // Generate PDF using Puppeteer
-    await generatePDF(getComparativeHTML(tenderData), filePath, true);
+    throw new Error('PDF generation temporarily disabled due to missing system dependencies');
   }
 
   return filePath;
 }
 
 async function generateScrutinySheet(tenderData: TenderData, format: 'doc' | 'pdf', outputDir: string): Promise<string> {
-  const fileName = `Scrutiny_Sheet_${tenderData.nitNumber}.${format}`;
+  const fileName = `Scrutiny_Sheet_${sanitizeFileName(tenderData.nitNumber)}.${format}`;
   const filePath = path.join(outputDir, fileName);
 
   if (format === 'doc') {
@@ -456,14 +448,14 @@ async function generateScrutinySheet(tenderData: TenderData, format: 'doc' | 'pd
     const buffer = await Packer.toBuffer(doc);
     fs.writeFileSync(filePath, buffer);
   } else {
-    await generatePDF(getScrutinyHTML(tenderData), filePath, false);
+    throw new Error('PDF generation temporarily disabled due to missing system dependencies');
   }
 
   return filePath;
 }
 
 async function generateWorkOrder(tenderData: TenderData, format: 'doc' | 'pdf', outputDir: string): Promise<string> {
-  const fileName = `Work_Order_${tenderData.nitNumber}.${format}`;
+  const fileName = `Work_Order_${sanitizeFileName(tenderData.nitNumber)}.${format}`;
   const filePath = path.join(outputDir, fileName);
 
   if (format === 'doc') {
@@ -595,7 +587,7 @@ async function generateWorkOrder(tenderData: TenderData, format: 'doc' | 'pdf', 
 }
 
 async function generateAcceptanceLetter(tenderData: TenderData, format: 'doc' | 'pdf', outputDir: string): Promise<string> {
-  const fileName = `Acceptance_Letter_${tenderData.nitNumber}.${format}`;
+  const fileName = `Acceptance_Letter_${sanitizeFileName(tenderData.nitNumber)}.${format}`;
   const filePath = path.join(outputDir, fileName);
 
   if (format === 'doc') {

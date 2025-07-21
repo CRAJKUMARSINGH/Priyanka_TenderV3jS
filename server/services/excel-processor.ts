@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import * as fs from 'fs';
 import { Bidder } from '@shared/schema';
 
 export interface ProcessedExcelData {
@@ -19,8 +20,9 @@ export interface ProcessedExcelData {
 
 export async function processExcelFile(filePath: string): Promise<ProcessedExcelData> {
   try {
-    // Read the Excel file
-    const workbook = XLSX.readFile(filePath);
+    // Read the Excel file using fs and then parse with XLSX
+    const fileBuffer = fs.readFileSync(filePath);
+    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     
