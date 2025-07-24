@@ -215,17 +215,53 @@ export class MemStorage implements IStorage {
 
   // Bidder Percentile methods
   async createBidderPercentile(insertPercentile: InsertBidderPercentile): Promise<BidderPercentile> {
-    const id = this.currentPercentileId++;
-    const percentile: BidderPercentile = { 
-      ...insertPercentile, 
-      id,
-      createdAt: new Date(),
-      tenderId: insertPercentile.tenderId || null,
-      bidderId: insertPercentile.bidderId || null,
-      percentage: insertPercentile.percentage.toString()
-    };
-    this.bidderPercentiles.set(id, percentile);
-    return percentile;
+    try {
+      const id = this.currentPercentileId++;
+      
+      // Ensure percentage is a valid number
+      let percentage = insertPercentile.percentage;
+      if (typeof percentage !== 'number') {
+        percentage = parseFloat(percentage as any);
+        if (isNaN(percentage)) {
+          throw new Error("Invalid percentage value");
+        }
+      }
+      
+      // Ensure tenderId and bidderId are valid numbers
+      const tenderId = insertPercentile.tenderId ? 
+        (typeof insertPercentile.tenderId === 'number' ? 
+          insertPercentile.tenderId : 
+          parseInt(insertPercentile.tenderId as any)) : 
+        null;
+      
+      const bidderId = insertPercentile.bidderId ? 
+        (typeof insertPercentile.bidderId === 'number' ? 
+          insertPercentile.bidderId : 
+          parseInt(insertPercentile.bidderId as any)) : 
+        null;
+      
+      // Ensure bidderDetails is a string
+      const bidderDetails = insertPercentile.bidderDetails ? 
+        String(insertPercentile.bidderDetails) : 
+        "Unknown Bidder";
+      
+      const percentile: BidderPercentile = { 
+        ...insertPercentile, 
+        id,
+        createdAt: new Date(),
+        tenderId,
+        bidderId,
+        bidderDetails,
+        percentage: percentage.toFixed(2)
+      };
+      
+      this.bidderPercentiles.set(id, percentile);
+      console.log("Created bidder percentile:", percentile);
+      return percentile;
+    } catch (error) {
+      console.error("Error creating bidder percentile:", error);
+      throw error;
+    }
   }
 
   async getBidderPercentilesByTender(tenderId: number): Promise<BidderPercentile[]> {
