@@ -105,13 +105,13 @@ export default function EnhancedBidderForm({ tenderId, onSuccess }: EnhancedBidd
         return;
       }
       finalBidderId = selectedBidder.id;
-      finalBidderDetails = `${selectedBidder.name}\n${selectedBidder.address}\n${selectedBidder.contact || ''}`;
+      finalBidderDetails = `${selectedBidder.name}\n${selectedBidder.address}\n${selectedBidder.contactInfo || ''}`;
     }
 
     addBidderPercentileMutation.mutate({
       tenderId,
       bidderId: finalBidderId,
-      percentage: percentage,
+      percentage: parseFloat(percentage),
       bidderDetails: finalBidderDetails
     });
   };

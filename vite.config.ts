@@ -33,5 +33,11 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+    host: '0.0.0.0',
+    port: 12000,
+    cors: true,
+    hmr: {
+      host: 'localhost',
+    },
   },
 });

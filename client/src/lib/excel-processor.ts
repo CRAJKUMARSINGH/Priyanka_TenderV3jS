@@ -112,13 +112,23 @@ export async function processExcelFile(file: File): Promise<ExcelData> {
           estimatedAmount = defaultItems.reduce((sum, item) => sum + item.amount, 0);
         }
         
+        // Ensure all numeric values are properly formatted
+        const formattedItems = items.map(item => ({
+          ...item,
+          srNo: Number(item.srNo),
+          quantity: Number(item.quantity),
+          rate: Number(item.rate),
+          amount: Number(item.amount)
+        }));
+        
         const processedData: ExcelData = {
           workDescription,
           estimatedAmount,
           tenderNumber,
-          items
+          items: formattedItems
         };
         
+        console.log('Processed Excel data:', processedData);
         resolve(processedData);
       } catch (error) {
         console.error('Excel processing error:', error);
