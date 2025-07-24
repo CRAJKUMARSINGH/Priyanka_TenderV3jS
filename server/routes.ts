@@ -263,18 +263,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { fileData, fileName } = req.body;
       
-      // Validate the Excel data
-      if (!fileData || !fileData.items || !Array.isArray(fileData.items)) {
-        throw new Error("Invalid Excel data format: missing or invalid items array");
+      // Enhanced validation for Excel data
+      if (!fileData) {
+        return res.status(400).json({ message: "Missing file data" });
       }
-      
-      // Process Excel data
+
+      if (!fileData.items || !Array.isArray(fileData.items) || fileData.items.length === 0) {
+        return res.status(400).json({ message: "Invalid Excel data: missing or invalid items array" });
+      }
+
+      // Validate each item has the required fields
+      for (const item of fileData.items) {
+        if (!item || typeof item !== 'object') {
+          return res.status(400).json({ message: "Invalid Excel data: item is not an object" });
+        }
+        
+        const requiredFields = ['srNo', 'description', 'quantity', 'unit', 'rate', 'amount'];
+        for (const field of requiredFields) {
+          if (!(field in item)) {
+            return res.status(400).json({ message: `Invalid Excel data: item missing required field '${field}'` });
+          }
+        }
+      }
+
+      // Process Excel data with safe type conversions
       const processedData = {
         tenderNumber: fileData.tenderNumber || `TND-${Date.now()}`,
-        workDescription: fileData.workDescription || "Tender work from Excel file",
-        estimatedAmount: fileData.estimatedAmount?.toString() || "1000000.00",
+        workDescription: String(fileData.workDescription || "Tender work from Excel file"),
+        estimatedAmount: typeof fileData.estimatedAmount === 'number' 
+          ? fileData.estimatedAmount.toFixed(2) 
+          : "1000000.00",
         excelData: JSON.stringify(fileData)
       };
+
+      console.log("Processing Excel data:", {
+        fileName,
+        tenderNumber: processedData.tenderNumber,
+        itemCount: fileData.items.length,
+        estimatedAmount: processedData.estimatedAmount
+      });
 
       const tender = await storage.createTender(processedData);
       res.json({ 
@@ -283,7 +310,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Excel processing error:', error);
-      res.status(500).json({ message: "Failed to process Excel file: " + (error as Error).message });
+      res.status(500).json({ 
+        message: "Failed to process Excel file", 
+        error: (error as Error).message 
+      });
     }
   });
 

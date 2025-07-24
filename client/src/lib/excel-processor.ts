@@ -20,15 +20,31 @@ export async function processExcelFile(file: File): Promise<ExcelData> {
     
     reader.onload = (e) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        if (!e.target || !e.target.result) {
+          throw new Error("Failed to read file data");
+        }
+        
+        const data = new Uint8Array(e.target.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
+        
+        if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+          throw new Error("Invalid Excel file: No worksheets found");
+        }
         
         // Get the first worksheet
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
+        if (!worksheet) {
+          throw new Error("Invalid Excel file: Worksheet is empty");
+        }
+        
         // Convert to JSON
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (!Array.isArray(jsonData) || jsonData.length === 0) {
+          throw new Error("Invalid Excel file: No data found in worksheet");
+        }
         
         // Extract tender information from the Excel file
         let workDescription = "Tender Work Description";
@@ -54,7 +70,7 @@ export async function processExcelFile(file: File): Promise<ExcelData> {
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i] as any[];
           if (row && row.length > 3) {
-            const rowStr = row.join('').toLowerCase();
+            const rowStr = (row.join('') || '').toLowerCase();
             if (rowStr.includes('sr') && (rowStr.includes('description') || rowStr.includes('item'))) {
               headerRowIndex = i;
               break;
@@ -67,12 +83,13 @@ export async function processExcelFile(file: File): Promise<ExcelData> {
           for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
             const row = jsonData[i] as any[];
             if (row && row.length >= 4 && row[0]) {
-              const srNo = typeof row[0] === 'number' ? row[0] : parseInt(row[0]) || items.length + 1;
-              const description = row[1] || `Item ${srNo}`;
-              const quantity = parseFloat(row[2]) || 1;
-              const unit = row[3] || 'Nos';
-              const rate = parseFloat(row[4]) || 0;
-              const amount = parseFloat(row[5]) || (quantity * rate);
+              // Safely parse numeric values with fallbacks
+              const srNo = parseNumeric(row[0], items.length + 1);
+              const description = row[1] ? String(row[1]) : `Item ${srNo}`;
+              const quantity = parseNumeric(row[2], 1);
+              const unit = row[3] ? String(row[3]) : 'Nos';
+              const rate = parseNumeric(row[4], 0);
+              const amount = parseNumeric(row[5], quantity * rate);
               
               estimatedAmount += amount;
               
@@ -90,6 +107,7 @@ export async function processExcelFile(file: File): Promise<ExcelData> {
         
         // If no items found, create a default structure
         if (items.length === 0) {
+          console.warn("No items found in Excel file, using default items");
           const defaultItems = [
             {
               srNo: 1,
@@ -123,7 +141,7 @@ export async function processExcelFile(file: File): Promise<ExcelData> {
         
         const processedData: ExcelData = {
           workDescription,
-          estimatedAmount,
+          estimatedAmount: Number(estimatedAmount.toFixed(2)), // Fix precision issues
           tenderNumber,
           items: formattedItems
         };
@@ -144,11 +162,26 @@ export async function processExcelFile(file: File): Promise<ExcelData> {
   });
 }
 
+// Helper function to safely parse numeric values
+function parseNumeric(value: any, defaultValue: number): number {
+  if (value === undefined || value === null || value === '') {
+    return defaultValue;
+  }
+  
+  if (typeof value === 'number') {
+    return isNaN(value) ? defaultValue : value;
+  }
+  
+  // Try to convert string to number
+  const parsed = parseFloat(String(value).replace(/[^\d.-]/g, ''));
+  return isNaN(parsed) ? defaultValue : parsed;
+}
+
 export function validateExcelStructure(data: any): boolean {
-  // Placeholder validation logic
-  // In production, this would validate the Excel structure against expected format
+  // More robust validation logic
   
   if (!data || typeof data !== 'object') {
+    console.error("Excel validation failed: data is not an object");
     return false;
   }
   
@@ -156,22 +189,56 @@ export function validateExcelStructure(data: any): boolean {
   const requiredFields = ['workDescription', 'estimatedAmount', 'items'];
   for (const field of requiredFields) {
     if (!(field in data)) {
+      console.error(`Excel validation failed: missing required field '${field}'`);
       return false;
     }
   }
   
   // Validate items array
-  if (!Array.isArray(data.items) || data.items.length === 0) {
+  if (!Array.isArray(data.items)) {
+    console.error("Excel validation failed: 'items' is not an array");
+    return false;
+  }
+  
+  if (data.items.length === 0) {
+    console.error("Excel validation failed: 'items' array is empty");
     return false;
   }
   
   // Validate each item structure
   for (const item of data.items) {
+    if (!item || typeof item !== 'object') {
+      console.error("Excel validation failed: item is not an object");
+      return false;
+    }
+    
     const itemFields = ['srNo', 'description', 'quantity', 'unit', 'rate', 'amount'];
     for (const field of itemFields) {
       if (!(field in item)) {
+        console.error(`Excel validation failed: item missing required field '${field}'`);
         return false;
       }
+    }
+    
+    // Validate numeric fields
+    if (typeof item.srNo !== 'number' || isNaN(item.srNo)) {
+      console.error("Excel validation failed: srNo is not a valid number");
+      return false;
+    }
+    
+    if (typeof item.quantity !== 'number' || isNaN(item.quantity)) {
+      console.error("Excel validation failed: quantity is not a valid number");
+      return false;
+    }
+    
+    if (typeof item.rate !== 'number' || isNaN(item.rate)) {
+      console.error("Excel validation failed: rate is not a valid number");
+      return false;
+    }
+    
+    if (typeof item.amount !== 'number' || isNaN(item.amount)) {
+      console.error("Excel validation failed: amount is not a valid number");
+      return false;
     }
   }
   
