@@ -82,10 +82,10 @@ export type BidderPercentile = typeof bidderPercentiles.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type GeneratedDocument = typeof generatedDocuments.$inferSelect;
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
 });
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;

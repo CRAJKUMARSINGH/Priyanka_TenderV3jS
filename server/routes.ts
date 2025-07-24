@@ -263,6 +263,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { fileData, fileName } = req.body;
       
+      // Validate the Excel data
+      if (!fileData || !fileData.items || !Array.isArray(fileData.items)) {
+        throw new Error("Invalid Excel data format: missing or invalid items array");
+      }
+      
       // Process Excel data
       const processedData = {
         tenderNumber: fileData.tenderNumber || `TND-${Date.now()}`,
@@ -306,12 +311,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
+      // Parse Excel data safely
+      let excelItems = [];
+      try {
+        if (tender.excelData) {
+          const parsedData = JSON.parse(tender.excelData);
+          if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
+            excelItems = parsedData.items;
+          }
+        }
+      } catch (err) {
+        console.error('Error parsing Excel data:', err);
+      }
+      
       const documentData = {
         tenderNumber: tender.tenderNumber,
         workDescription: tender.workDescription,
         estimatedAmount: tender.estimatedAmount,
         bidders: bidders,
-        items: tender.excelData ? JSON.parse(tender.excelData).items : undefined
+        items: excelItems
       };
 
       // Generate documents
