@@ -20,55 +20,97 @@ cd client && npm install
 
 ### Running the Application
 
-#### Method 1: Running Server and Client Separately (Recommended)
+#### Method 1: Using the Start Script (Recommended for Windows)
+
+The easiest way to run the application is to use the provided start script:
+
+```bash
+# In the root directory
+npm run start-app
+```
+
+For Windows users:
+```bash
+# In the root directory
+npm run start-app:windows
+```
+
+Or directly run the batch file:
+```bash
+start-app.bat
+```
+
+#### Method 2: Running Server and Client Separately
 
 1. Start the server:
 ```bash
 # In the root directory
-npm run dev
+npm run dev:server
 ```
 
 2. In a separate terminal, start the client:
 ```bash
-# Navigate to the client directory
-cd client
-npm run dev
+# In the root directory
+npm run dev:client
 ```
 
-#### Method 2: Using Vite Directly
+For Windows users:
+```bash
+# In the root directory
+npm run dev:windows:server
+
+# In another terminal
+npm run dev:windows:client
+```
+
+#### Method 3: Using Vite Directly
 
 If you encounter issues with the npm scripts, you can try running Vite directly:
 
 ```bash
-# Navigate to the client directory
+# Set environment variables
+set NODE_ENV=development
+set PORT=3001
+
+# Start the server
+node --loader tsx server/index.ts
+
+# In another terminal, navigate to the client directory
 cd client
-npx vite
+npx vite --port 3000
 ```
+
+### Port Configuration
+
+The application uses the following ports:
+- Server: 3001
+- Client: 3000
+
+You can access the application at:
+- http://localhost:3000
 
 ### Windows-specific Instructions
 
-On Windows, you may need to modify the `dev` script in package.json:
-
-```json
-"dev": "set NODE_ENV=development && tsx server/index.ts"
-```
-
-Or use cross-env:
+Windows users should use the Windows-specific scripts:
 
 ```bash
-npm install --save-dev cross-env
+npm run dev:windows:server
+npm run dev:windows:client
 ```
 
-Then update the script:
-
-```json
-"dev": "cross-env NODE_ENV=development tsx server/index.ts"
+Or use the batch file:
+```bash
+start-app.bat
 ```
 
 ### Troubleshooting
 
-If you encounter path resolution issues:
+If you encounter port conflicts:
+1. Check if another application is using ports 3000 or 3001
+2. Modify the PORT environment variable to use different ports
+3. Update the proxy settings in client/vite.config.ts accordingly
 
+If you encounter path resolution issues:
 1. Make sure both the server and client are running
 2. Check that the client's vite.config.ts has the correct path aliases
 3. Verify that the proxy settings in the client's vite.config.ts are pointing to the correct server URL
