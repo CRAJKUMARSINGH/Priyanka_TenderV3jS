@@ -2,27 +2,21 @@
   "version": 2,
   "builds": [
     {
-      "src": "client/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "src": "package.json",
+      "use": "@vercel/node"
     },
     {
-      "src": "server/package.json",
-      "use": "@vercel/node"
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": { 
+        "distDir": "dist",
+        "buildCommand": "npm run build:client"
+      }
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "client/dist/$1"
-    }
-  ],
-  "functions": {
-    "api/download.ts": { "maxDuration": 60 },
-    "api/generate-pdf.ts": { "maxDuration": 60 }
-  }
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/static/(.*)", "dest": "/client/dist/static/$1" },
+    { "src": "/(.*)", "dest": "/client/dist/$1" }
+  ]
 }
