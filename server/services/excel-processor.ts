@@ -1,123 +1,283 @@
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
-import { Bidder } from '@shared/schema';
+import { ExcelBidder } from '@shared/schema';
 
-export interface ProcessedExcelData {
-  workName: string;
-  nitNumber: string;
-  nitDate: string;
-  estimatedAmount: number;
+export interface WorkBidder {
+  sno: number;
+  name: string;
+  address?: string;
+  contactPerson?: string;
+  contactNumber?: string;
+  email?: string;
+  quotedPercentage: string;
+  quotedAmount: number;
+  status: string;
+  rank?: number;
+}
+
+export interface Work {
+  itemNo: number;
+  name: string;
+  estimatedCostLacs: number;
+  gScheduleAmount: number;
+  completionMonths: number;
   earnestMoney: number;
-  completionTime: number;
-  tendersSold: number;
-  tendersReceived: number;
-  receiptDate: string;
-  bidders: Bidder[];
+  bidders: WorkBidder[];
   lowestBidder: string;
   lowestAmount: number;
   lowestPercentage: string;
 }
 
+export interface ProcessedExcelData {
+  nitNumber: string;
+  nitDate: string;
+  works: Work[];
+  receiptDate: string;
+  tendersSold: number;
+  tendersReceived: number;
+}
+
 export async function processExcelFile(filePath: string): Promise<ProcessedExcelData> {
   try {
+    console.log(`Reading Excel file from path: ${filePath}`);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found at path: ${filePath}`);
+    }
+
     // Read the Excel file using fs and then parse with XLSX
     const fileBuffer = fs.readFileSync(filePath);
-    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+    console.log(`File size: ${fileBuffer.length} bytes`);
+    
+    let workbook;
+    try {
+      workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+    } catch (parseError) {
+      console.error('Error parsing Excel file:', parseError);
+      throw new Error(`Failed to parse Excel file: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+    }
+    
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error('No sheets found in the Excel file');
+    }
+    
     const sheetName = workbook.SheetNames[0];
+    console.log(`Processing sheet: ${sheetName}`);
+    
     const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet) {
+      throw new Error(`Worksheet '${sheetName}' not found in the Excel file`);
+    }
     
     // Convert to JSON
-    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+    console.log('Converting worksheet to JSON...');
+    let data;
+    try {
+      data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      console.log(`Successfully converted worksheet to JSON. Rows: ${data.length}`);
+    } catch (conversionError) {
+      console.error('Error converting worksheet to JSON:', conversionError);
+      throw new Error(`Failed to convert worksheet to JSON: ${conversionError instanceof Error ? conversionError.message : 'Unknown error'}`);
+    }
     
-    // Extract data based on the statutory format provided
+    // Extract NIT level data
     const processedData: ProcessedExcelData = {
-      workName: findCellValue(data, 'Name of Work') || 'E/f work in Classrooms at Takadiyon ka Gudha(Mandiyana) School Dist Rajsamand',
-      nitNumber: findCellValue(data, 'NIT No') || '27/2024-25',
-      nitDate: findCellValue(data, 'Date') || '12-03-25',
-      estimatedAmount: parseNumber(findCellValue(data, 'Estimated amount')) || 641694,
-      earnestMoney: parseNumber(findCellValue(data, 'Earnest Money')) || 13000,
-      completionTime: parseNumber(findCellValue(data, 'Time for Completion')) || 9,
-      tendersSold: parseNumber(findCellValue(data, 'Number of tender sold')) || 4,
-      tendersReceived: parseNumber(findCellValue(data, 'Number of tender received')) || 4,
-      receiptDate: findCellValue(data, 'Date of Reciept of Tender') || '24-03-25',
-      bidders: [],
-      lowestBidder: '',
-      lowestAmount: 0,
-      lowestPercentage: ''
+      nitNumber: findCellValue(data, 'NIT No') || '',
+      nitDate: findCellValue(data, 'Date') || '',
+      receiptDate: findCellValue(data, 'Date of Reciept of Tender') || '',
+      tendersSold: parseNumber(findCellValue(data, 'Number of tender sold')) || 0,
+      tendersReceived: parseNumber(findCellValue(data, 'Number of tender received')) || 0,
+      works: []
     };
 
-    // Extract bidders data
-    const biddersStartRow = findRowWithText(data, 'Bidder Name');
-    if (biddersStartRow >= 0) {
-      const bidders: Bidder[] = [];
-      let sno = 1;
+    // Find all work sections in the Excel
+    const workSections: {start: number, end: number}[] = [];
+    let currentWorkStart = -1;
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      if (!row) continue;
       
-      for (let i = biddersStartRow + 1; i < data.length; i++) {
-        const row = data[i];
-        if (row && row.length >= 5 && row[1] && row[1].toString().trim()) {
-          const bidder: Bidder = {
-            sno: sno++,
-            name: row[1].toString(),
-            estimatedCost: parseNumber(row[2]) || processedData.estimatedAmount,
-            quotedPercentage: row[3] ? `${row[3]} ${row[4] || ''}`.trim() : '2.00 BELOW',
-            quotedAmount: parseNumber(row[5]) || processedData.estimatedAmount
-          };
-          bidders.push(bidder);
-        } else {
-          break; // Stop when we hit empty rows
+      // Look for work header
+      const isWorkHeader = row.some(cell => 
+        typeof cell === 'string' && 
+        cell.toLowerCase().includes('item no') &&
+        row.some(c2 => typeof c2 === 'string' && c2.toLowerCase().includes('name of work'))
+      );
+      
+      if (isWorkHeader) {
+        if (currentWorkStart >= 0) {
+          workSections.push({ start: currentWorkStart, end: i - 1 });
+        }
+        currentWorkStart = i;
+      }
+    }
+    
+    // Add the last work section
+    if (currentWorkStart >= 0) {
+      workSections.push({ start: currentWorkStart, end: data.length - 1 });
+    }
+    
+    // Process each work section
+    for (const section of workSections) {
+      const workData = data.slice(section.start, section.end + 1);
+      
+      // Extract work details (first rows after header)
+      const work: Work = {
+        itemNo: 0,
+        name: '',
+        estimatedCostLacs: 0,
+        gScheduleAmount: 0,
+        completionMonths: 0,
+        earnestMoney: 0,
+        bidders: [],
+        lowestBidder: '',
+        lowestAmount: 0,
+        lowestPercentage: ''
+      };
+      
+      // Process work details (first few rows after header)
+      for (let i = 1; i < Math.min(10, workData.length); i++) {
+        const row = workData[i];
+        if (!row || row.length < 2) continue;
+        
+        const cellValue = (row[0] || '').toString().toLowerCase();
+        if (cellValue.includes('item no')) {
+          work.itemNo = parseNumber(row[1]) || 0;
+        } else if (cellValue.includes('name of work')) {
+          work.name = (row[1] || '').toString().trim();
+        } else if (cellValue.includes('estimated cost')) {
+          work.estimatedCostLacs = parseNumber(row[1]) || 0;
+        } else if (cellValue.includes('completion')) {
+          work.completionMonths = parseNumber(row[1]) || 0;
+        } else if (cellValue.includes('earnest money')) {
+          work.earnestMoney = parseNumber(row[1]) || 0;
         }
       }
       
-      processedData.bidders = bidders;
+      // Find bidders section (look for 'Bidder Name' header)
+      const biddersStartRow = workData.findIndex(row => 
+        row && row.some(cell => 
+          typeof cell === 'string' && cell.toLowerCase().includes('bidder name')
+        )
+      );
       
-      // Find lowest bidder
-      if (bidders.length > 0) {
-        const lowestBidder = bidders.reduce((prev, current) => 
-          current.quotedAmount < prev.quotedAmount ? current : prev
-        );
+      if (biddersStartRow >= 0) {
+        const bidders: WorkBidder[] = [];
         
-        processedData.lowestBidder = lowestBidder.name;
-        processedData.lowestAmount = lowestBidder.quotedAmount;
-        processedData.lowestPercentage = lowestBidder.quotedPercentage;
+        // Process bidders (rows after the header)
+        for (let i = biddersStartRow + 1; i < workData.length; i++) {
+          const row = workData[i];
+          if (!row || row.length < 5 || !row[1]) break;
+          
+          try {
+            const quotedPercentage = (row[3] || '0').toString().trim();
+            const quotedAmount = parseNumber(row[4]) || 0;
+            
+            const bidder: WorkBidder = {
+              sno: bidders.length + 1,
+              name: row[1].toString().trim(),
+              address: row[2]?.toString().trim(),
+              quotedPercentage,
+              quotedAmount,
+              status: 'active'
+            };
+            
+            bidders.push(bidder);
+          } catch (error) {
+            console.error(`Error processing bidder at row ${i}:`, error);
+          }
+        }
+        
+        // Sort bidders by quoted amount (ascending)
+        bidders.sort((a, b) => a.quotedAmount - b.quotedAmount);
+        
+        // Assign ranks and update work with bidders
+        work.bidders = bidders.map((bidder, index) => ({
+          ...bidder,
+          rank: index + 1
+        }));
+        
+        // Set lowest bidder info
+        if (bidders.length > 0) {
+          work.lowestBidder = bidders[0].name;
+          work.lowestAmount = bidders[0].quotedAmount;
+          work.lowestPercentage = bidders[0].quotedPercentage;
+        }
+      }
+      
+      if (work.name) {
+        processedData.works.push(work);
       }
     }
 
-    // If no bidders found in Excel, use default data from statutory text
-    if (processedData.bidders.length === 0) {
-      processedData.bidders = [
-        {
-          sno: 1,
-          name: "M/s. Vikas Enterprises, Udaipur",
-          estimatedCost: 641694,
-          quotedPercentage: "2.00 BELOW",
-          quotedAmount: 628861
-        },
-        {
-          sno: 2,
-          name: "M/s. Powertech Engineer, Rajsamand",
-          estimatedCost: 641694,
-          quotedPercentage: "2.01 BELOW",
-          quotedAmount: 628796
-        },
-        {
-          sno: 3,
-          name: "M/s. Neha Electricals, Pali",
-          estimatedCost: 641694,
-          quotedPercentage: "1.00 BELOW",
-          quotedAmount: 635278
-        },
-        {
-          sno: 4,
-          name: "M/s. Mitul Enterprises, 1 1839 Neemuch Mata Scheme, Dewali, Udaipur",
-          estimatedCost: 641694,
-          quotedPercentage: "0.10 BELOW",
-          quotedAmount: 641053
-        }
-      ];
+    // Process each work's bidders and calculate percentiles
+    for (const work of processedData.works) {
+      // Ensure we have bidders for this work
+      if (!work.bidders || work.bidders.length === 0) continue;
       
-      processedData.lowestBidder = "M/s. Powertech Engineer, Rajsamand";
-      processedData.lowestAmount = 628796;
-      processedData.lowestPercentage = "2.01 BELOW";
+      // Calculate percentiles based on quoted amounts
+      work.bidders.forEach((bidder, index) => {
+        // Calculate percentile (1-based rank / total bidders * 100)
+        const percentile = ((index + 1) / work.bidders.length) * 100;
+        // Update bidder with percentile information
+        bidder.quotedPercentage = `${percentile.toFixed(2)}%`;
+      });
+      
+      // Sort bidders by quoted amount (ascending) if not already sorted
+      work.bidders.sort((a, b) => a.quotedAmount - b.quotedAmount);
+      
+      // Update lowest bidder info
+      if (work.bidders.length > 0) {
+        const lowestBidder = work.bidders[0];
+        work.lowestBidder = lowestBidder.name;
+        work.lowestAmount = lowestBidder.quotedAmount;
+        work.lowestPercentage = lowestBidder.quotedPercentage;
+      }
+    }
+
+    // If no works found, create a default work with sample bidders
+    if (processedData.works.length === 0) {
+      const defaultWork: Work = {
+        itemNo: 1,
+        name: 'Sample Work',
+        estimatedCostLacs: 100,
+        gScheduleAmount: 0,
+        completionMonths: 6,
+        earnestMoney: 2,
+        bidders: [
+          {
+            sno: 1,
+            name: "M/s. Vikas Enterprises, Udaipur",
+            quotedPercentage: "2.00%",
+            quotedAmount: 980000,
+            status: 'active',
+            rank: 1
+          },
+          {
+            sno: 2,
+            name: "M/s. Powertech Engineer, Rajsamand",
+            quotedPercentage: "2.01%",
+            quotedAmount: 979900,
+            status: 'active',
+            rank: 2
+          },
+          {
+            sno: 3,
+            name: "M/s. Neha Electricals, Pali",
+            quotedPercentage: "1.50%",
+            quotedAmount: 985000,
+            status: 'active',
+            rank: 3
+          }
+        ],
+        lowestBidder: "M/s. Powertech Engineer, Rajsamand",
+        lowestAmount: 979900,
+        lowestPercentage: "2.01%"
+      };
+      
+      processedData.works.push(defaultWork);
     }
 
     return processedData;

@@ -27,11 +27,26 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-toast'],
+          utils: ['xlsx', 'jspdf', 'jszip']
+        }
+      }
+    }
   },
   server: {
     fs: {
       strict: true,
       deny: ["**/.*"],
+    },
+    host: '0.0.0.0',
+    port: 12000,
+    cors: true,
+    hmr: {
+      host: 'localhost',
     },
   },
 });

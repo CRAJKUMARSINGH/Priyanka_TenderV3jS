@@ -1,0 +1,16 @@
+{
+  "name": "rest-express",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "tsx index.ts",
+    "seed:works": "tsx src/scripts/seedWorks.ts",
+    "seed:bids": "tsx src/scripts/seedBids.ts"
+  },
+  "dependencies": {
+    "mongoose": "^6.0.0",
+    "tsx": "^3.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^3.0.0"
+  }
+}
