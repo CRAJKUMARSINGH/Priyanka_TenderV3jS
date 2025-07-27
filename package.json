@@ -1,4 +1,7 @@
-{
-  "name": "priyanka-tender",
-  "scripts": { "build": "echo 'No build step needed'" }
+"scripts": {
+  "build": "npm run client:build",
+  "client:build": "npm run build --prefix client",
+  "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+  "server:dev": "cross-env NODE_ENV=development tsx server/index.ts",
+  "client:dev": "vite --config client/vite.config.ts"
 }
