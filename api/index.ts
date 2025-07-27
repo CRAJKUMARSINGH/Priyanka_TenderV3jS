@@ -1,3 +1,15 @@
-import app from '../server/index';
-
-export default app;
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "client/dist",
+  "devCommand": "npm run dev",
+  "installCommand": "npm ci",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}
